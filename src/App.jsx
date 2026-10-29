@@ -59,8 +59,10 @@ export default function App() {
       console.warn('Storage read failed', e);
     }
 
-    // 2. Fetch public /games.json
-    fetch('/games.json')
+    // 2. Fetch public /games.json relative to base URL (supports GitHub Pages subpaths)
+    const base = import.meta.env.BASE_URL || './';
+    const jsonUrl = base.endsWith('/') ? `${base}games.json` : `${base}/games.json`;
+    fetch(jsonUrl)
       .then((res) => {
         if (!res.ok) throw new Error('Network response was not ok');
         return res.json();

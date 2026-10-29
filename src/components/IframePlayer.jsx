@@ -14,10 +14,18 @@ export const IframePlayer = ({
 
   // Extract source URL from game.iframe string if iframeSrc is not provided
   const getIframeSrc = () => {
-    if (game.iframeSrc) return game.iframeSrc;
-    const match = game.iframe?.match(/src=["']([^"']+)["']/i);
-    if (match && match[1]) return match[1];
-    return game.iframe || '';
+    let raw = game.iframeSrc;
+    if (!raw) {
+      const match = game.iframe?.match(/src=["']([^"']+)["']/i);
+      raw = (match && match[1]) ? match[1] : (game.iframe || '');
+    }
+    // If path is a local game path like /games/... adjust with base URL for GitHub Pages
+    if (typeof raw === 'string' && raw.startsWith('/games/')) {
+      const base = import.meta.env.BASE_URL || './';
+      const cleanBase = base.endsWith('/') ? base : `${base}/`;
+      return `${cleanBase}${raw.replace(/^\//, '')}`;
+    }
+    return raw;
   };
 
   const srcUrl = getIframeSrc();
@@ -58,7 +66,7 @@ export const IframePlayer = ({
       ifr.style.width = '100%';
       ifr.style.height = '100%';
       ifr.style.margin = '0';
-      ifr.src = window.location.origin + srcUrl;
+      ifr.src = new URL(srcUrl, window.location.href).href;
       doc.body.appendChild(ifr);
     }
   };

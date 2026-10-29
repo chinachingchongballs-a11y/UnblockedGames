@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>PlayZone - Redirecting</title>
+  <script>
+    // GitHub Pages SPA redirect
+    var path = window.location.pathname;
+    // Redirect back to base root
+    window.location.replace(window.location.origin + window.location.pathname.split('/').slice(0, -1).join('/') + '/');
+  </script>
+</head>
+<body style="background:#020617;color:#f8fafc;font-family:sans-serif;text-align:center;padding:50px;">
+  <h2>Redirecting to PlayZone...</h2>
+  <p><a href="./" style="color:#38bdf8;">Click here if you are not redirected</a></p>
+</body>
+</html>

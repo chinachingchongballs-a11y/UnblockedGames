@@ -2,5 +2,7 @@
   "name": "PlayZone - Unblocked Games Hub",
   "description": "Instant play unblocked games portal powered by an open JSON iframe catalog with panic key, theater mode, and custom iframe loader.",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }
