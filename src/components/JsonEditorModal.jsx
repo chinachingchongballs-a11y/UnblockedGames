@@ -13,6 +13,10 @@ export const JsonEditorModal = ({
   const [jsonText, setJsonText] = useState(() => JSON.stringify(games, null, 2));
   const [error, setError] = useState(null);
 
+  React.useEffect(() => {
+    setJsonText(JSON.stringify(games, null, 2));
+  }, [games, isOpen]);
+
   // New game form state
   const [title, setTitle] = useState('');
   const [category, setCategory] = useState('Arcade');

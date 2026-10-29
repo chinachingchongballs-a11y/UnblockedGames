@@ -68,30 +68,27 @@ export default function App() {
         return res.json();
       })
       .then((data) => {
-        if (Array.isArray(data) && data.length > 0) {
-          // Check if user has custom local overrides
-          const custom = localStorage.getItem(STORAGE_KEY_GAMES);
-          if (custom) {
-            try {
-              setGames(JSON.parse(custom));
-            } catch {
+        if (Array.isArray(data)) {
+          if (data.length === 0) {
+            localStorage.removeItem(STORAGE_KEY_GAMES);
+            setGames([]);
+          } else {
+            const custom = localStorage.getItem(STORAGE_KEY_GAMES);
+            if (custom) {
+              try {
+                setGames(JSON.parse(custom));
+              } catch {
+                setGames(data);
+              }
+            } else {
               setGames(data);
             }
-          } else {
-            setGames(data);
           }
         }
       })
       .catch((err) => {
         console.info('Using default bundled games catalog:', err);
-        const custom = localStorage.getItem(STORAGE_KEY_GAMES);
-        if (custom) {
-          try {
-            setGames(JSON.parse(custom));
-          } catch {
-            setGames(DEFAULT_GAMES);
-          }
-        }
+        setGames(DEFAULT_GAMES);
       });
   }, []);
 
@@ -609,8 +606,26 @@ export default function App() {
                   />
                 ))}
               </div>
+            ) : games.length === 0 ? (
+              /* Catalog empty state */
+              <div className="text-center py-20 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-8 max-w-xl mx-auto">
+                <Gamepad2 className="w-14 h-14 text-slate-600 mx-auto mb-4" />
+                <h3 className="text-lg font-bold text-white mb-2">No Games in Catalog</h3>
+                <p className="text-xs text-slate-400 leading-relaxed mb-6">
+                  All games have been removed. You can now store and customize your own games as iframes in the <code className="text-sky-400 font-mono">games.json</code> file or add them directly using the button below.
+                </p>
+                <div className="flex flex-col sm:flex-row justify-center gap-3">
+                  <button
+                    onClick={() => setIsJsonModalOpen(true)}
+                    className="px-5 py-2.5 bg-sky-600 hover:bg-sky-500 text-xs font-semibold text-white rounded-lg transition-colors flex items-center justify-center gap-2"
+                  >
+                    <Code className="w-4 h-4 text-sky-200" />
+                    <span>Open games.json / Add Game</span>
+                  </button>
+                </div>
+              </div>
             ) : (
-              /* Empty state */
+              /* Search empty state */
               <div className="text-center py-16 bg-slate-900/40 border border-slate-800/80 rounded-2xl p-8">
                 <Gamepad2 className="w-12 h-12 text-slate-600 mx-auto mb-3" />
                 <h3 className="text-base font-bold text-white mb-1">No games found</h3>

@@ -156,6 +156,7 @@ export const IframePlayer = ({
           className="w-full h-full border-0 block"
           allow="autoplay; fullscreen; keyboard; gamepad"
           allowFullScreen
+          referrerPolicy="no-referrer-when-downgrade"
           loading="eager"
         />
       </div>
