@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Retro Snake 97</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #090d16; color: #f8fafc; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;
+      overflow: hidden; user-select: none;
+    }
+    .top-bar {
+      width: 440px; max-width: 95vw; display: flex; justify-content: space-between; align-items: center; margin-bottom: 12px;
+    }
+    .brand { font-size: 24px; font-weight: 900; color: #22c55e; letter-spacing: 1px; }
+    .stats { display: flex; gap: 16px; font-size: 14px; font-weight: 700; color: #94a3b8; }
+    .stats span { color: #fff; font-size: 18px; margin-left: 4px; }
+    #canvas-wrap {
+      position: relative; width: 440px; height: 440px; max-width: 95vw; max-height: 95vw;
+      border: 3px solid #22c55e; border-radius: 12px; box-shadow: 0 0 20px rgba(34, 197, 94, 0.2);
+    }
+    canvas { display: block; width: 100%; height: 100%; border-radius: 9px; background: #05080f; }
+    #overlay {
+      position: absolute; inset: 0; background: rgba(9, 13, 22, 0.9); border-radius: 9px;
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+    }
+    h2 { font-size: 32px; font-weight: 900; color: #22c55e; margin-bottom: 8px; }
+    p { color: #94a3b8; margin-bottom: 20px; font-size: 14px; }
+    .btn {
+      background: #22c55e; color: #022c22; font-weight: 800; font-size: 15px; border: none;
+      padding: 12px 30px; border-radius: 8px; cursor: pointer; transition: transform 0.15s;
+    }
+    .btn:hover { transform: scale(1.05); }
+    .controls-hint { margin-top: 14px; color: #64748b; font-size: 13px; }
+  </style>
+</head>
+<body>
+  <div class="top-bar">
+    <div class="brand">SNAKE '97</div>
+    <div class="stats">
+      <div>SCORE: <span id="score">0</span></div>
+      <div>BEST: <span id="best">0</span></div>
+    </div>
+  </div>
+
+  <div id="canvas-wrap">
+    <canvas id="c" width="440" height="440"></canvas>
+    <div id="overlay">
+      <h2 id="overTitle">RETRO SNAKE</h2>
+      <p id="overDesc">Eat apples, grow longer, avoid walls & tail!</p>
+      <button id="startBtn" class="btn">START GAME</button>
+    </div>
+  </div>
+
+  <div class="controls-hint">Use Arrow keys or WASD to navigate</div>
+
+  <script>
+    let audioCtx = null;
+    function beep(freq, type='sine', dur=0.08) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = type;
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(0.08, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
+      } catch(e){}
+    }
+
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('startBtn');
+    const scoreEl = document.getElementById('score');
+    const bestEl = document.getElementById('best');
+    const overTitle = document.getElementById('overTitle');
+    const overDesc = document.getElementById('overDesc');
+
+    const GRID = 20;
+    const COUNT = 22; // 22 * 20 = 440
+    let snake = [];
+    let dir = { x: 1, y: 0 };
+    let nextDir = { x: 1, y: 0 };
+    let food = { x: 15, y: 11, golden: false };
+    let score = 0;
+    let best = parseInt(localStorage.getItem('snake_best') || '0', 10);
+    bestEl.textContent = best;
+    let isRunning = false;
+    let tickSpeed = 110;
+    let gameLoopTimeout = null;
+
+    function reset() {
+      snake = [
+        { x: 10, y: 10 },
+        { x: 9, y: 10 },
+        { x: 8, y: 10 }
+      ];
+      dir = { x: 1, y: 0 };
+      nextDir = { x: 1, y: 0 };
+      score = 0;
+      tickSpeed = 110;
+      scoreEl.textContent = '0';
+      spawnFood();
+    }
+
+    function spawnFood() {
+      let valid = false;
+      while (!valid) {
+        food.x = Math.floor(Math.random() * COUNT);
+        food.y = Math.floor(Math.random() * COUNT);
+        valid = !snake.some(seg => seg.x === food.x && seg.y === food.y);
+      }
+      food.golden = Math.random() < 0.2;
+    }
+
+    function step() {
+      if (!isRunning) return;
+      dir = { ...nextDir };
+      const head = { x: snake[0].x + dir.x, y: snake[0].y + dir.y };
+
+      // Wall collision
+      if (head.x < 0 || head.x >= COUNT || head.y < 0 || head.y >= COUNT) {
+        return gameOver();
+      }
+
+      // Self collision
+      if (snake.some(seg => seg.x === head.x && seg.y === head.y)) {
+        return gameOver();
+      }
+
+      snake.unshift(head);
+
+      // Check food
+      if (head.x === food.x && head.y === food.y) {
+        const pts = food.golden ? 50 : 10;
+        score += pts;
+        scoreEl.textContent = score;
+        if (score > best) {
+          best = score;
+          localStorage.setItem('snake_best', best);
+          bestEl.textContent = best;
+        }
+        beep(food.golden ? 880 : 540, 'triangle', 0.1);
+        tickSpeed = Math.max(55, tickSpeed - 1.5);
+        spawnFood();
+      } else {
+        snake.pop();
+      }
+
+      draw();
+      gameLoopTimeout = setTimeout(step, tickSpeed);
+    }
+
+    function draw() {
+      // Background grid
+      ctx.fillStyle = '#05080f';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.strokeStyle = '#0f172a';
+      ctx.lineWidth = 1;
+      for (let i = 0; i <= COUNT; i++) {
+        ctx.beginPath();
+        ctx.moveTo(i * GRID, 0);
+        ctx.lineTo(i * GRID, 440);
+        ctx.stroke();
+        ctx.beginPath();
+        ctx.moveTo(0, i * GRID);
+        ctx.lineTo(440, i * GRID);
+        ctx.stroke();
+      }
+
+      // Food
+      ctx.fillStyle = food.golden ? '#eab308' : '#ef4444';
+      ctx.shadowColor = food.golden ? '#eab308' : '#ef4444';
+      ctx.shadowBlur = 10;
+      ctx.beginPath();
+      ctx.arc(food.x * GRID + GRID / 2, food.y * GRID + GRID / 2, GRID / 2 - 2, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.shadowBlur = 0;
+
+      // Snake Body
+      for (let i = 0; i < snake.length; i++) {
+        const seg = snake[i];
+        if (i === 0) {
+          ctx.fillStyle = '#4ade80';
+          ctx.shadowColor = '#22c55e';
+          ctx.shadowBlur = 8;
+        } else {
+          ctx.fillStyle = '#22c55e';
+          ctx.shadowBlur = 0;
+        }
+        ctx.fillRect(seg.x * GRID + 1, seg.y * GRID + 1, GRID - 2, GRID - 2);
+      }
+      ctx.shadowBlur = 0;
+    }
+
+    function gameOver() {
+      isRunning = false;
+      beep(150, 'sawtooth', 0.35);
+      overTitle.textContent = 'GAME OVER';
+      overDesc.textContent = `Final Score: ${score} | High Score: ${best}`;
+      startBtn.textContent = 'PLAY AGAIN';
+      overlay.style.display = 'flex';
+    }
+
+    function start() {
+      overlay.style.display = 'none';
+      reset();
+      isRunning = true;
+      beep(440, 'sine', 0.1);
+      step();
+    }
+
+    startBtn.addEventListener('click', start);
+
+    window.addEventListener('keydown', (e) => {
+      if (['ArrowUp', 'KeyW'].includes(e.code) && dir.y === 0) nextDir = { x: 0, y: -1 };
+      if (['ArrowDown', 'KeyS'].includes(e.code) && dir.y === 0) nextDir = { x: 0, y: 1 };
+      if (['ArrowLeft', 'KeyA'].includes(e.code) && dir.x === 0) nextDir = { x: -1, y: 0 };
+      if (['ArrowRight', 'KeyD'].includes(e.code) && dir.x === 0) nextDir = { x: 1, y: 0 };
+      if (e.code === 'Space' && !isRunning) start();
+    });
+
+    draw();
+  </script>
+</body>
+</html>

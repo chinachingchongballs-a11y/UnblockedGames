@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Tower Blocks DX</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      background: #090e1a; color: #fff; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 100vh;
+      overflow: hidden; user-select: none;
+    }
+    #wrap {
+      position: relative; width: 380px; height: 560px; max-width: 95vw;
+      border: 2px solid #8b5cf6; border-radius: 12px; overflow: hidden; box-shadow: 0 0 25px rgba(139, 92, 246, 0.25);
+    }
+    canvas { display: block; width: 100%; height: 100%; background: #060914; }
+    #hud {
+      position: absolute; top: 20px; left: 0; right: 0; text-align: center; pointer-events: none;
+    }
+    .score-txt { font-size: 48px; font-weight: 900; color: #fff; text-shadow: 0 2px 10px rgba(0,0,0,0.5); }
+    .best-txt { font-size: 13px; font-weight: 700; color: #a78bfa; text-transform: uppercase; letter-spacing: 1.5px; }
+    #overlay {
+      position: absolute; inset: 0; background: rgba(9, 14, 26, 0.85); backdrop-filter: blur(4px);
+      display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px;
+    }
+    h1 { font-size: 32px; font-weight: 900; color: #a78bfa; margin-bottom: 8px; }
+    p { font-size: 14px; color: #94a3b8; margin-bottom: 24px; }
+    .btn {
+      background: #8b5cf6; color: #fff; font-size: 16px; font-weight: 800; border: none;
+      padding: 12px 32px; border-radius: 8px; cursor: pointer; transition: transform 0.15s;
+    }
+    .btn:hover { transform: scale(1.05); }
+  </style>
+</head>
+<body>
+  <div id="wrap">
+    <div id="hud">
+      <div id="score" class="score-txt">0</div>
+      <div id="best" class="best-txt">BEST: 0</div>
+    </div>
+    <canvas id="c" width="380" height="560"></canvas>
+    <div id="overlay">
+      <h1 id="overTitle">TOWER STACKER</h1>
+      <p id="overDesc">Tap screen or Space to place block. Trim perfect edges!</p>
+      <button id="startBtn" class="btn">STACK NOW</button>
+    </div>
+  </div>
+
+  <script>
+    let audioCtx = null;
+    function chime(freq, dur=0.15) {
+      try {
+        if (!audioCtx) audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        if (audioCtx.state === 'suspended') audioCtx.resume();
+        const osc = audioCtx.createOscillator();
+        const g = audioCtx.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+        g.gain.setValueAtTime(0.1, audioCtx.currentTime);
+        g.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + dur);
+        osc.connect(g);
+        g.connect(audioCtx.destination);
+        osc.start();
+        osc.stop(audioCtx.currentTime + dur);
+      } catch(e){}
+    }
+
+    const canvas = document.getElementById('c');
+    const ctx = canvas.getContext('2d');
+    const overlay = document.getElementById('overlay');
+    const startBtn = document.getElementById('startBtn');
+    const scoreEl = document.getElementById('score');
+    const bestEl = document.getElementById('best');
+    const overTitle = document.getElementById('overTitle');
+    const overDesc = document.getElementById('overDesc');
+
+    let state = 'MENU';
+    let score = 0;
+    let best = parseInt(localStorage.getItem('stack_best') || '0', 10);
+    bestEl.textContent = 'BEST: ' + best;
+
+    let stack = [];
+    let activeBlock = null;
+    let cameraY = 0;
+    let targetCameraY = 0;
+    let combo = 0;
+
+    const BLOCK_H = 26;
+
+    function getColor(index) {
+      const hue = (index * 12) % 360;
+      return `hsl(${hue}, 80%, 60%)`;
+    }
+
+    function init() {
+      score = 0;
+      combo = 0;
+      scoreEl.textContent = '0';
+      cameraY = 0;
+      targetCameraY = 0;
+      stack = [
+        { x: 90, y: 500, w: 200, h: BLOCK_H, color: getColor(0) }
+      ];
+      spawnBlock();
+    }
+
+    function spawnBlock() {
+      const prev = stack[stack.length - 1];
+      const dir = (stack.length % 2 === 0) ? 1 : -1;
+      activeBlock = {
+        x: dir === 1 ? -prev.w : canvas.width,
+        y: prev.y - BLOCK_H,
+        w: prev.w,
+        h: BLOCK_H,
+        speed: (220 + stack.length * 5) * dir,
+        color: getColor(stack.length)
+      };
+    }
+
+    function place() {
+      if (state !== 'PLAYING') return;
+      const prev = stack[stack.length - 1];
+      const diff = activeBlock.x - prev.x;
+
+      if (Math.abs(diff) < 4) {
+        // Perfect snap!
+        activeBlock.x = prev.x;
+        combo++;
+        chime(440 + combo * 60, 0.2);
+      } else if (Math.abs(diff) >= activeBlock.w) {
+        // Complete Miss -> Game Over
+        gameOver();
+        return;
+      } else {
+        combo = 0;
+        chime(330, 0.1);
+        if (diff > 0) {
+          activeBlock.w -= diff;
+        } else {
+          activeBlock.x = prev.x;
+          activeBlock.w += diff;
+        }
+      }
+
+      stack.push({ ...activeBlock });
+      score = stack.length - 1;
+      scoreEl.textContent = score;
+      if (score > best) {
+        best = score;
+        localStorage.setItem('stack_best', best);
+        bestEl.textContent = 'BEST: ' + best;
+      }
+
+      // Camera adjust
+      if (activeBlock.y < 300) {
+        targetCameraY += BLOCK_H;
+      }
+
+      spawnBlock();
+    }
+
+    function startGame() {
+      state = 'PLAYING';
+      overlay.style.display = 'none';
+      init();
+    }
+
+    function gameOver() {
+      state = 'GAMEOVER';
+      chime(120, 0.4);
+      overTitle.textContent = 'GAME OVER';
+      overDesc.textContent = `Score: ${score} | High Score: ${best}`;
+      startBtn.textContent = 'TRY AGAIN';
+      overlay.style.display = 'flex';
+    }
+
+    startBtn.addEventListener('click', startGame);
+    window.addEventListener('keydown', (e) => {
+      if (e.code === 'Space') {
+        e.preventDefault();
+        if (state === 'PLAYING') place();
+        else startGame();
+      }
+    });
+    canvas.addEventListener('mousedown', () => {
+      if (state === 'PLAYING') place();
+    });
+    canvas.addEventListener('touchstart', (e) => {
+      e.preventDefault();
+      if (state === 'PLAYING') place();
+    }, { passive: false });
+
+    let lastTime = performance.now();
+    function loop(now) {
+      requestAnimationFrame(loop);
+      const dt = Math.min((now - lastTime) / 1000, 0.05);
+      lastTime = now;
+
+      cameraY += (targetCameraY - cameraY) * 0.1;
+
+      if (state === 'PLAYING' && activeBlock) {
+        activeBlock.x += activeBlock.speed * dt;
+        if (activeBlock.speed > 0 && activeBlock.x > canvas.width + 20) {
+          activeBlock.speed = -activeBlock.speed;
+        } else if (activeBlock.speed < 0 && activeBlock.x < -activeBlock.w - 20) {
+          activeBlock.speed = -activeBlock.speed;
+        }
+      }
+
+      // RENDER
+      ctx.fillStyle = '#060914';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      ctx.save();
+      ctx.translate(0, cameraY);
+
+      // Draw Stack
+      for (let b of stack) {
+        ctx.fillStyle = b.color;
+        ctx.shadowColor = b.color;
+        ctx.shadowBlur = 8;
+        ctx.fillRect(b.x, b.y, b.w, b.h - 1);
+        ctx.fillStyle = 'rgba(255,255,255,0.2)';
+        ctx.fillRect(b.x, b.y, b.w, 4);
+      }
+      ctx.shadowBlur = 0;
+
+      // Draw Active Block
+      if (state === 'PLAYING' && activeBlock) {
+        ctx.fillStyle = activeBlock.color;
+        ctx.shadowColor = activeBlock.color;
+        ctx.shadowBlur = 12;
+        ctx.fillRect(activeBlock.x, activeBlock.y, activeBlock.w, activeBlock.h - 1);
+        ctx.fillStyle = 'rgba(255,255,255,0.3)';
+        ctx.fillRect(activeBlock.x, activeBlock.y, activeBlock.w, 4);
+      }
+      ctx.shadowBlur = 0;
+
+      ctx.restore();
+    }
+
+    requestAnimationFrame(loop);
+  </script>
+</body>
+</html>
