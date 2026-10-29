@@ -9,23 +9,263 @@
     <meta property="og:description" content="Instant play unblocked games portal powered by an open JSON iframe catalog with panic key, theater mode, and custom iframe loader." />
     <meta property="og:type" content="website" />
     <meta name="twitter:card" content="summary_large_image" />
-    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%236366f1'><path d='M6 11h4V7h2v4h4v2h-4v4h-2v-4H6v-2z'/><path d='M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H3V8h18v8z'/></svg>" />
+    <link rel="icon" type="image/svg+xml" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%2338bdf8'><path d='M6 11h4V7h2v4h4v2h-4v4h-2v-4H6v-2z'/><path d='M21 6H3c-1.1 0-2 .9-2 2v8c0 1.1.9 2 2 2h18c1.1 0 2-.9 2-2V8c0-1.1-.9-2-2-2zm0 10H3V8h18v8z'/></svg>" />
+    <link rel="stylesheet" href="./style.css" />
   </head>
-  <body class="bg-slate-950 text-slate-100 m-0 p-0">
-    <div id="root">
-      <div style="min-height: 100vh; background-color: #020617; color: #f8fafc; display: flex; flex-direction: column; align-items: center; justify-content: center; font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif; text-align: center; padding: 20px;">
-        <div style="width: 44px; height: 44px; border: 3px solid #1e293b; border-top-color: #38bdf8; border-radius: 50%; animation: spin 0.9s linear infinite; margin-bottom: 16px;"></div>
-        <h1 style="font-size: 20px; font-weight: 800; letter-spacing: 1.5px; color: #38bdf8; margin: 0 0 6px 0;">PLAYZONE</h1>
-        <p style="font-size: 13px; color: #94a3b8; margin: 0;">Loading Unblocked Games...</p>
-        <noscript>
-          <p style="color: #ef4444; margin-top: 14px; font-size: 13px;">JavaScript is required to play games on PlayZone.</p>
-        </noscript>
+  <body>
+    <!-- Top Navigation Header -->
+    <header class="site-header">
+      <div class="header-inner">
+        <!-- Logo / Brand -->
+        <div id="brand-link" class="brand">
+          <div class="brand-icon">🎮</div>
+          <div class="brand-text">
+            <h1>PLAYZONE <span class="status-dot"></span></h1>
+            <div class="brand-sub">UNBLOCKED ARCADE</div>
+          </div>
+        </div>
+
+        <!-- Live Search -->
+        <div class="search-wrap">
+          <span class="search-icon">🔍</span>
+          <input
+            id="search-input"
+            type="text"
+            class="search-input"
+            placeholder="Search games or tags... (Press '/' to focus)"
+            autocomplete="off"
+          />
+          <button id="search-clear" class="search-clear" style="display:none;">✕</button>
+        </div>
+
+        <!-- Header Actions -->
+        <div class="header-actions">
+          <button id="random-btn" class="btn-action" title="Surprise me with a random game">
+            🎲 <span>Random</span>
+          </button>
+          <button id="json-btn" class="btn-action" title="Inspect and edit games.json catalog">
+            📄 <span>games.json</span>
+          </button>
+          <button id="panic-btn" class="btn-action btn-panic" title="Stealth Panic Screen (Hotkey: ` or ESC)">
+            🛡️ <span>Panic (`)</span>
+          </button>
+        </div>
       </div>
-      <style>
-        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
-      </style>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-content">
+      <!-- 1. Catalog View -->
+      <div id="catalog-view">
+        <!-- Filter and Category Tabs Bar -->
+        <div class="filter-bar">
+          <div id="categories-list" class="categories-list">
+            <!-- Dynamic Category Buttons -->
+          </div>
+
+          <div class="sort-wrap">
+            <span>Sort by:</span>
+            <select id="sort-select" class="sort-select">
+              <option value="popular">Most Popular</option>
+              <option value="rating">Top Rated</option>
+              <option value="title">Alphabetical (A-Z)</option>
+            </select>
+          </div>
+        </div>
+
+        <!-- Status strip -->
+        <div class="status-bar">
+          <div id="status-text">Loading unblocked games...</div>
+          <div style="font-size:11px;color:var(--text-dim);">100% Client-Side JSON · Zero Lag</div>
+        </div>
+
+        <!-- Games Grid -->
+        <div id="games-grid" class="games-grid">
+          <!-- Game cards will be injected by app.js -->
+        </div>
+
+        <!-- Empty State -->
+        <div id="empty-state" class="empty-state" style="display:none;">
+          <div class="empty-icon">🎮</div>
+          <h2 id="empty-title" class="empty-title">No Games Found</h2>
+          <p id="empty-sub" class="empty-sub">Your catalog is currently empty. You can add games stored as iframes in games.json.</p>
+          <button id="empty-add-btn" class="btn-primary">Add Game to JSON</button>
+        </div>
+      </div>
+
+      <!-- 2. Active Game Player View -->
+      <div id="player-view" class="player-view" style="display:none;">
+        <div class="player-nav">
+          <button id="player-back-btn" class="btn-back">
+            ← Back to Games Catalog
+          </button>
+          <div id="player-rating" style="font-size:13px;font-weight:700;color:var(--accent-amber);">
+            ★ 5.0
+          </div>
+        </div>
+
+        <!-- Player Frame -->
+        <div class="player-frame-box">
+          <div class="player-toolbar">
+            <div id="player-title" class="player-title">Game Title</div>
+            <div class="player-tools">
+              <button id="player-fav-btn" class="player-tool-btn" title="Toggle Favorite">♡</button>
+              <button id="player-reload-btn" class="player-tool-btn" title="Reload Game">🔄</button>
+              <button id="player-theater-btn" class="player-tool-btn" title="Theater Mode">🗖</button>
+              <button id="player-fullscreen-btn" class="player-tool-btn" title="Fullscreen">⛶</button>
+              <button id="player-popout-btn" class="player-tool-btn" title="Open in stealth about:blank tab">↗</button>
+            </div>
+          </div>
+
+          <div id="player-iframe-box" class="player-iframe-container">
+            <!-- Iframe injected by app.js -->
+          </div>
+
+          <div class="player-footer-strip">
+            <div>Controls Guide: <span id="player-controls" style="color:var(--primary);font-family:monospace;">Arrow keys</span></div>
+            <div style="font-size:11px;color:var(--text-dim);">Unblocked HTML5 Game</div>
+          </div>
+        </div>
+
+        <!-- Game Info & Instructions -->
+        <div class="player-details">
+          <div>
+            <h3 style="font-size:16px;font-weight:700;margin-bottom:8px;">About the Game</h3>
+            <p id="player-desc" style="font-size:13px;color:var(--text-muted);line-height:1.6;"></p>
+          </div>
+          <div class="controls-card">
+            <div style="font-size:12px;font-weight:700;margin-bottom:4px;color:var(--text-main);">Quick Tips</div>
+            <span class="controls-code">ESC / ` for Panic Key</span>
+            <span class="controls-code" style="margin-top:4px;">F11 or ⛶ for Fullscreen</span>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="site-footer">
+      <div class="footer-inner">
+        <div>
+          <strong style="color:#fff;">PLAYZONE</strong> · Unblocked Games Catalog · Stored as Iframes in JSON
+        </div>
+        <div class="footer-links">
+          <button id="footer-json-btn" class="footer-link">games.json</button>
+          <a href="./games.json" target="_blank" class="footer-link">Direct JSON URL</a>
+          <button onclick="window.scrollTo({top:0,behavior:'smooth'});" class="footer-link">Back to Top</button>
+        </div>
+      </div>
+    </footer>
+
+    <!-- JSON Catalog Manager Modal -->
+    <div id="modal-backdrop" class="modal-backdrop" style="display:none;">
+      <div class="modal-card">
+        <div class="modal-header">
+          <h2 style="font-size:16px;font-weight:700;display:flex;align-items:center;gap:8px;">
+            📄 games.json Catalog Manager
+          </h2>
+          <button id="modal-close-btn" class="player-tool-btn" style="font-size:18px;">✕</button>
+        </div>
+
+        <div class="modal-tabs">
+          <button id="tab-view" class="modal-tab-btn active">JSON Source Code</button>
+          <button id="tab-add" class="modal-tab-btn">Add Game to JSON</button>
+        </div>
+
+        <div class="modal-body">
+          <!-- Tab 1: View / Edit Raw JSON -->
+          <div id="view-pane">
+            <p style="font-size:12px;color:var(--text-muted);margin-bottom:10px;">
+              Direct JSON representation of all games with iframe properties:
+            </p>
+            <textarea id="json-textarea" class="json-textarea" spellcheck="false"></textarea>
+
+            <div style="display:flex;align-items:center;justify-content:space-between;margin-top:14px;flex-wrap:wrap;gap:8px;">
+              <div style="display:flex;gap:8px;">
+                <button id="copy-json-btn" class="btn-action">📋 Copy JSON</button>
+                <button id="download-json-btn" class="btn-action">💾 Download .json</button>
+              </div>
+              <button id="apply-json-btn" class="btn-primary" style="padding:8px 16px;">Apply Changes</button>
+            </div>
+          </div>
+
+          <!-- Tab 2: Add Game Form -->
+          <div id="add-pane" style="display:none;">
+            <form id="add-game-form">
+              <div class="form-group">
+                <label class="form-label">Game Title</label>
+                <input id="new-title" class="form-input" required placeholder="e.g. Stunt Bike Extreme" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Category</label>
+                <select id="new-category" class="form-select">
+                  <option value="Sports">Sports</option>
+                  <option value="Action">Action</option>
+                  <option value="Arcade">Arcade</option>
+                  <option value="Puzzle">Puzzle</option>
+                  <option value="Retro">Retro</option>
+                  <option value="Strategy">Strategy</option>
+                </select>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Iframe HTML Code or Embed URL</label>
+                <textarea id="new-iframe" class="form-textarea" rows="3" required placeholder='<iframe src="https://..." width="100%" height="540" frameborder="0" allowfullscreen></iframe>'></textarea>
+                <span style="font-size:11px;color:var(--text-dim);margin-top:4px;display:block;">Paste either full &lt;iframe&gt; code or direct game URL.</span>
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Description</label>
+                <input id="new-desc" class="form-input" placeholder="Brief gameplay summary..." />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Controls</label>
+                <input id="new-controls" class="form-input" placeholder="e.g. Arrow keys to steer, Space to jump" />
+              </div>
+
+              <div class="form-group">
+                <label class="form-label">Thumbnail Image URL</label>
+                <input id="new-thumbnail" class="form-input" placeholder="https://images.unsplash.com/..." />
+              </div>
+
+              <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:20px;">
+                <button type="submit" class="btn-primary">Append to games.json</button>
+              </div>
+            </form>
+          </div>
+        </div>
+      </div>
     </div>
-    <script type="module" src="./src/main.jsx"></script>
+
+    <!-- Panic / Stealth Cloak Screen (Google Docs Lookalike) -->
+    <div id="cloak-screen" class="cloak-screen" style="display:none;">
+      <div class="cloak-top">
+        <div style="display:flex;align-items:center;gap:12px;">
+          <div style="background:#1a73e8;color:#fff;width:32px;height:32px;border-radius:4px;display:flex;align-items:center;justify-content:center;font-size:18px;">📄</div>
+          <div>
+            <div style="font-weight:600;font-size:14px;color:#202124;">Research Project - Distributed Systems Notes</div>
+            <div style="font-size:11px;color:#5f6368;">File &nbsp; Edit &nbsp; View &nbsp; Insert &nbsp; Format &nbsp; Tools &nbsp; Help</div>
+          </div>
+        </div>
+        <div>
+          <button id="uncloak-btn" style="background:#e8f0fe;color:#1967d2;border:1px solid #dadce0;padding:6px 14px;border-radius:4px;font-size:12px;font-weight:600;cursor:pointer;">
+            Uncloak (ESC)
+          </button>
+        </div>
+      </div>
+
+      <div class="cloak-body">
+        <div class="cloak-page" contenteditable="true">
+          <h2 style="font-size:18px;margin-bottom:14px;font-family:Arial,sans-serif;">Literature Review: Distributed Systems & Asynchronous Consensus Protocols</h2>
+          <p><strong>1. Abstract</strong><br/>This paper examines modern fault-tolerant consensus mechanisms within heterogeneous network topologies. Recent advancements in Paxos and Raft implementations indicate that reducing round-trip validation latency yields significant throughput gains without compromising state consistency.</p>
+          <p style="margin-top:14px;"><strong>2. Background and Core Axioms</strong><br/>Traditional centralized architectures suffer from single-point bottlenecks. By segmenting state machine replication across partitioned clusters, nodes achieve linear scalability while maintaining strict Byzantine fault tolerance guarantees.</p>
+          <p style="margin-top:14px;"><strong>3. Empirical Observations</strong><br/>During testing across simulated geographic latency clusters, packet serialization overhead remained bounded within sub-millisecond thresholds.</p>
+        </div>
+      </div>
+    </div>
+
+    <!-- Application JavaScript -->
+    <script type="module" src="./app.js"></script>
   </body>
 </html>
-
