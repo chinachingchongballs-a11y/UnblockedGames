@@ -68,22 +68,23 @@ export default function App() {
         return res.json();
       })
       .then((data) => {
-        if (Array.isArray(data)) {
-          if (data.length === 0) {
-            localStorage.removeItem(STORAGE_KEY_GAMES);
-            setGames([]);
-          } else {
-            const custom = localStorage.getItem(STORAGE_KEY_GAMES);
-            if (custom) {
-              try {
-                setGames(JSON.parse(custom));
-              } catch {
-                setGames(data);
-              }
-            } else {
+        if (Array.isArray(data) && data.length > 0) {
+          const custom = localStorage.getItem(STORAGE_KEY_GAMES);
+          if (custom) {
+            try {
+              const parsedCustom = JSON.parse(custom);
+              // Merge custom additions with server catalog so new games are never hidden
+              const existingIds = new Set(data.map((g) => g.id));
+              const extraCustomGames = parsedCustom.filter((g) => !existingIds.has(g.id));
+              setGames([...data, ...extraCustomGames]);
+            } catch {
               setGames(data);
             }
+          } else {
+            setGames(data);
           }
+        } else {
+          setGames(DEFAULT_GAMES);
         }
       })
       .catch((err) => {
